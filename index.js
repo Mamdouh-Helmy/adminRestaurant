@@ -13,7 +13,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'https://store-management-467c1.web.app'],
+    origin: ['http://localhost:5173', 'https://store-management-467c1.web.app' , 'https://restaurant-d5367.web.app/'],
     methods: ['GET', 'POST'],
   },
 });
@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 // إعداد CORS وزيادة حجم الطلبات
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'https://store-management-467c1.web.app'],
+    origin: ['http://localhost:5173', 'https://store-management-467c1.web.app' , 'https://restaurant-d5367.web.app/'],
     credentials: true,
   })
 );
