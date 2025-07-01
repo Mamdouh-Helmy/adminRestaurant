@@ -45,6 +45,28 @@ app.use('/api/categories', categoryRoutes(io)); // تمرير io إلى مسار
 app.use('/api/suppliers', supplierRoutes(io));  // تمرير io إلى مسارات الموردين
 app.use('/api/sales', salesRoutes(io));
 
+app.post("/api/send-verification-code", async (req, res) => {
+  const { email, toName, fromName } = req.body;
+
+  try {
+    const code = generateVerificationCode();
+    res.status(200).json({ message: "Verification code sent successfully!", code });
+  } catch (error) {
+    console.error("Failed to send verification code:", error);
+    res.status(500).json({ message: "Failed to send verification code." });
+  }
+});
+
+app.post("/api/verify-code", (req, res) => {
+  const { userCode, serverCode } = req.body;
+
+  if (userCode === serverCode) {
+    res.status(200).json({ message: "Verification successful!" });
+  } else {
+    res.status(400).json({ message: "Incorrect verification code." });
+  }
+});
+
 // إعداد Socket.IO
 io.on('connection', (socket) => {
   console.log('عميل متصل');

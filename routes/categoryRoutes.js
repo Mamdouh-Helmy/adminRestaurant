@@ -22,7 +22,7 @@ module.exports = (io) => {
   });
 
   // جلب جميع الفئات
-  router.get('/', authenticateToken, async (req, res) => {
+  router.get('/', async (req, res) => {
     try {
       const categories = await Category.find();
       res.json(categories);
