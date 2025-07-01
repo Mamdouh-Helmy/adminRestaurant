@@ -6,7 +6,8 @@ require('dotenv').config(); // لقراءة متغيرات البيئة من م�
 const connectDB = require('./config/db'); // ملف الاتصال بقاعدة البيانات
 const authRoutes = require('./routes/authRoutes');
 const categoryRoutes = require('./routes/categoryRoutes'); // سنمرر io لهذا الملف
-const supplierRoutes = require('./routes/supplierController'); // ملف مسارات الموردين
+const supplierRoutes = require('./routes/supplierController');
+const salesRoutes = require('./routes/sales'); // ملف مسارات الموردين
 
 const app = express();
 const server = http.createServer(app);
@@ -42,6 +43,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes(io)); // تمرير io إلى مسارات الفئات
 app.use('/api/suppliers', supplierRoutes(io));  // تمرير io إلى مسارات الموردين
+app.use('/api/sales', salesRoutes(io));
 
 // إعداد Socket.IO
 io.on('connection', (socket) => {

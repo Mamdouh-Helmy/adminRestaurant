@@ -1,34 +1,31 @@
 const mongoose = require('mongoose');
 
 const supplierSchema = new mongoose.Schema({
-    nameAr: { type: String }, // Arabic name
-    nameEn: { type: String }, // English name
-    weights: [
-        {
-            unit: {
-                type: String,
-                enum: [
-                    // Arabic units
-                    'كيلو', 'جرام', 'طن', 'باوند', 'أوقية',
-                    // English units
-                    'kilo', 'gram', 'ton', 'pound', 'ounce'
-                ],
-                required: true,
-            },
-            value: { type: Number, required: true }, // Weight value
-        },
-    ],
-    prices: [{ type: Number, required: true }], // Prices corresponding to weights
-    typeOfFood: {
-        ar: { type: String }, // Arabic type of food (optional)
-        en: { type: String }, // English type of food (optional)
+  nameAr: String,
+  nameEn: String,
+  weights: [
+    {
+      unit: {
+        type: String,
+        enum: ['كيلو', 'جرام', 'طن', 'باوند', 'أوقية', 'kilo', 'gram', 'ton', 'pound', 'ounce'],
+        required: true,
+      },
+      quantity: { type: Number, required: true }, // عدد الحبات (تم تعديل المعنى)
+      price: { type: Number, required: true },    // سعر الوحدة (كيلو)
+      stock: { type: Number, required: true },    // المخزون بالوزن (كيلو)
+      weightPerUnit: { type: Number, required: true }, // وزن الحبة الواحدة (كيلو)
+      totalPrice: { type: Number, required: true }, // السعر الكلي = stock × price
     },
-    description: {
-        ar: { type: String }, // Arabic description (optional)
-        en: { type: String }, // English description (optional)
-    },
+  ],
+  prices: [{ type: Number, required: true }],
+  typeOfFood: {
+    ar: String,
+    en: String,
+  },
+  description: {
+    ar: String,
+    en: String,
+  },
 });
 
-const Supplier = mongoose.model('Supplier', supplierSchema);
-
-module.exports = Supplier;
+module.exports = mongoose.model('Supplier', supplierSchema);
