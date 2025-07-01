@@ -45,6 +45,10 @@ app.use('/api/categories', categoryRoutes(io)); // تمرير io إلى مسار
 app.use('/api/suppliers', supplierRoutes(io));  // تمرير io إلى مسارات الموردين
 app.use('/api/sales', salesRoutes(io));
 
+const generateVerificationCode = () => {
+  return crypto.randomInt(100000, 999999).toString();
+};
+
 app.post("/api/send-verification-code", async (req, res) => {
   const { email, toName, fromName } = req.body;
 
