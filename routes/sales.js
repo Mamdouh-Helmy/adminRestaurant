@@ -4,12 +4,11 @@ const Category = require('../models/Category');
 const Supplier = require('../models/Supplier');
 const authenticateToken = require('../middleware/authMiddleware');
 
-// تعريف الـ router
 const router = express.Router();
 
 module.exports = (io) => {
   // بيع منتج
-  router.post('/sell/:categoryId/products/:productId', authenticateToken, async (req, res) => {
+  router.post('/sell/:categoryId/products/:productId', async (req, res) => {
     try {
       const { categoryId, productId } = req.params;
       const { quantitySold } = req.body;
@@ -33,10 +32,11 @@ module.exports = (io) => {
 
       // تفاصيل المكونات مع الأرباح
       const ingredientDetails = [];
+      let totalIngredientCost = 0;
 
-      // التحقق من المخزون وخصمه
+      // التحقق من المخزون وحساب التكاليف
       for (const ingredient of product.ingredients) {
-        const { supplierId, weightIndex, quantity } = ingredient;
+        const { supplierId, quantity } = ingredient;
 
         // جلب المورد
         const supplier = await Supplier.findById(supplierId);
@@ -44,77 +44,85 @@ module.exports = (io) => {
           return res.status(400).json({ message: `المورد بالمعرف ${supplierId} غير موجود` });
         }
 
-        const weight = supplier.weights[weightIndex];
-        if (!weight) {
-          return res.status(400).json({ message: `الوزن المحدد (index: ${weightIndex}) غير متاح في المورد ${supplier.nameAr}` });
-        }
-
-        // حساب الوزن المطلوب بناءً على عدد الحبات
-        const weightPerUnit = weight.weightPerUnit || 0;
-        if (weightPerUnit <= 0) {
-          return res.status(400).json({ message: `وزن الحبة الواحدة لـ ${supplier.nameAr} غير محدد أو غير صالح` });
-        }
-        const totalUnitsUsed = quantity * quantitySold; // عدد الحبات المستخدمة = عدد الحبات لكل وحدة × الكمية المباعة
-        const totalWeightToDeduct = totalUnitsUsed * weightPerUnit; // الوزن الكلي = عدد الحبات × وزن الحبة
+        // حساب عدد الحبات المطلوبة
+        const totalPiecesNeeded = quantity * quantitySold; // عدد الحبات المطلوبة = حبات لكل منتج × الكمية المباعة
 
         // التحقق من كفاية المخزون
-        if (weight.stock < totalWeightToDeduct) {
+        if (supplier.stock < totalPiecesNeeded) {
           return res.status(400).json({
-            message: `المخزون غير كافٍ لـ ${weight.quantity} ${weight.unit} من ${supplier.nameAr} (المطلوب: ${totalWeightToDeduct} ${weight.unit}, المتوفر: ${weight.stock})`,
+            message: `المخزون غير كافٍ لـ ${supplier.nameAr} (المطلوب: ${totalPiecesNeeded} حبة، المتوفر: ${supplier.stock} حبة)`,
           });
         }
 
-        // خصم الوزن من المخزون
-        weight.stock -= totalWeightToDeduct;
-        weight.totalPrice = weight.price * weight.stock; // تحديث السعر الكلي بعد الخصم
-        await supplier.save();
-
-        // حساب تكلفة المكون (سعر الشراء)
-        const ingredientCost = totalWeightToDeduct * weight.price;
+        // حساب الوزن والتكلفة
+        const totalWeight = totalPiecesNeeded * supplier.weightPerPiece;
+        const ingredientCost = totalPiecesNeeded * supplier.pricePerPiece;
+        totalIngredientCost += ingredientCost;
 
         // إضافة تفاصيل المكون
         ingredientDetails.push({
           supplierName: supplier.nameAr,
-          unit: weight.unit,
-          quantityUsed: totalUnitsUsed, // عدد الحبات المستخدمة
-          weightUsed: totalWeightToDeduct, // الوزن المستخدم (كيلو)
-          purchasePrice: ingredientCost, // سعر الشراء للمكون
+          piecesUsed: totalPiecesNeeded,
+          weightUsed: totalWeight.toFixed(3),
+          weightUnit: supplier.weightUnit,
+          pricePerPiece: supplier.pricePerPiece,
+          totalCost: ingredientCost.toFixed(2),
+          remainingStock: supplier.stock - totalPiecesNeeded,
         });
       }
 
-      // حساب السعر الكلي للمنتج
-      const originalPrice = product.price * quantitySold; // السعر الأصلي
+      // خصم الحبات من المخزون
+      for (let i = 0; i < product.ingredients.length; i++) {
+        const ingredient = product.ingredients[i];
+        const detail = ingredientDetails[i];
+        
+        const supplier = await Supplier.findById(ingredient.supplierId);
+        supplier.stock -= detail.piecesUsed;
+        await supplier.save();
+
+        // إرسال إشعار تحديث المخزون
+        io.emit('supplier-update', { action: 'update-stock', supplier });
+      }
+
+      // حساب أسعار البيع والأرباح
+      const originalPrice = product.price * quantitySold;
       let discountedPrice = originalPrice;
 
-      // حساب السعر بعد الخصم إذا كان فيه خصم
+      // تطبيق الخصم إذا كان موجوداً
       if (product.discount && product.discountPercentage > 0) {
         const discountAmount = (product.discountPercentage / 100) * originalPrice;
         discountedPrice = originalPrice - discountAmount;
       }
 
-      // توزيع سعر البيع على المكونات بناءً على نسبة تكلفتها
-      const totalIngredientCost = ingredientDetails.reduce((sum, ing) => sum + ing.purchasePrice, 0);
+      // حساب الربح الإجمالي
+      const totalProfit = discountedPrice - totalIngredientCost;
+
+      // توزيع سعر البيع والربح على المكونات حسب نسبة التكلفة
       for (const ingredient of ingredientDetails) {
-        const ingredientSaleShare = totalIngredientCost > 0
-          ? (ingredient.purchasePrice / totalIngredientCost) * discountedPrice
-          : 0;
-        ingredient.salePrice = ingredientSaleShare; // سعر البيع للمكون
-        ingredient.profit = ingredientSaleShare - ingredient.purchasePrice; // الربح
+        const costRatio = totalIngredientCost > 0 ? ingredient.totalCost / totalIngredientCost : 0;
+        ingredient.saleShare = (costRatio * discountedPrice).toFixed(2);
+        ingredient.profit = (ingredient.saleShare - ingredient.totalCost).toFixed(2);
       }
 
       // حفظ التغييرات
       await category.save();
 
-      // إرسال إشعار عبر Socket.IO
+      // إرسال إشعار عام
       io.emit('update', { action: 'sell', categoryId, productId });
-      io.emit('supplier-update', { action: 'update-stock', supplierId: product.ingredients.map(i => i.supplierId) });
 
       // إرجاع تفاصيل البيع
       res.json({
         message: 'تمت عملية البيع وتحديث المخزون بنجاح',
-        originalPrice: originalPrice.toFixed(2), // السعر الأصلي للمنتج
-        discountedPrice: discountedPrice.toFixed(2), // السعر بعد الخصم
-        ingredientDetails, // تفاصيل المكونات (عدد الحبات، الوزن المستخدم، سعر الشراء، سعر البيع، الربح)
+        saleDetails: {
+          productName: product.name.ar,
+          quantitySold,
+          originalPrice: originalPrice.toFixed(2),
+          discountedPrice: discountedPrice.toFixed(2),
+          totalIngredientCost: totalIngredientCost.toFixed(2),
+          totalProfit: totalProfit.toFixed(2),
+          discountApplied: product.discount ? `${product.discountPercentage}%` : 'لا يوجد',
+        },
+        ingredientDetails,
       });
     } catch (error) {
       console.error('Error in sell route:', error);

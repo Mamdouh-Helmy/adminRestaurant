@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 // إعداد CORS وزيادة حجم الطلبات
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'https://store-management-467c1.web.app' , 'https://restaurant-d5367.web.app'],
+    origin: ['http://localhost:5173' ,'http://localhost:5174' , 'https://store-management-467c1.web.app' , 'https://restaurant-d5367.web.app'],
     credentials: true,
   })
 );

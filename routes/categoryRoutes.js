@@ -43,7 +43,7 @@ module.exports = (io) => {
       // التحقق من المكونات (بدون خصم المخزون)
       if (productData.ingredients && Array.isArray(productData.ingredients)) {
         for (const ingredient of productData.ingredients) {
-          const { supplierId, weightIndex, quantity } = ingredient;
+          const { supplierId, quantity } = ingredient;
 
           // جلب المورد
           const supplier = await Supplier.findById(supplierId);
@@ -51,23 +51,16 @@ module.exports = (io) => {
             return res.status(400).json({ message: `المورد بالمعرّف ${supplierId} غير موجود` });
           }
 
-          // التحقق من الوزن
-          const weight = supplier.weights[weightIndex];
-          if (!weight) {
-            return res.status(400).json({ message: `الوزن المحدد غير متاح في المورد` });
-          }
-
-          // حساب الوزن المطلوب بناءً على عدد الحبات
-          const weightPerUnit = weight.weightPerUnit || 0; // وزن الحبة الواحدة (كيلو)
-          if (weightPerUnit <= 0) {
+          // التحقق من وزن الحبة الواحدة
+          const weightPerPiece = supplier.weightPerPiece || 0;
+          if (weightPerPiece <= 0) {
             return res.status(400).json({ message: `وزن الحبة الواحدة لـ ${supplier.nameAr} غير محدد أو غير صالح` });
           }
-          const totalWeightRequired = quantity * weightPerUnit; // الوزن الكلي = عدد الحبات × وزن الحبة
 
           // التحقق من المخزون (بس من غير خصم)
-          if (weight.stock < totalWeightRequired) {
+          if (supplier.stock < quantity) {
             return res.status(400).json({
-              message: `المخزون غير كافٍ لـ ${weight.quantity} ${weight.unit} من ${supplier.nameAr} (المطلوب: ${totalWeightRequired} ${weight.unit}, المتوفر: ${weight.stock})`,
+              message: `المخزون غير كافٍ لـ ${supplier.nameAr} (المطلوب: ${quantity} حبة، المتوفر: ${supplier.stock} حبة)`,
             });
           }
         }
@@ -106,26 +99,21 @@ module.exports = (io) => {
       // التحقق من المكونات الجديدة (بدون خصم المخزون)
       if (updateData.ingredients && Array.isArray(updateData.ingredients)) {
         for (const ingredient of updateData.ingredients) {
-          const { supplierId, weightIndex, quantity } = ingredient;
+          const { supplierId, quantity } = ingredient;
           const supplier = await Supplier.findById(supplierId);
           if (!supplier) {
             return res.status(400).json({ message: `المورد بالمعرّف ${supplierId} غير موجود` });
           }
-          const weight = supplier.weights[weightIndex];
-          if (!weight) {
-            return res.status(400).json({ message: `الوزن المحدد غير متاح في المورد` });
-          }
 
-          // حساب الوزن المطلوب بناءً على عدد الحبات
-          const weightPerUnit = weight.weightPerUnit || 0;
-          if (weightPerUnit <= 0) {
+          // التحقق من وزن الحبة الواحدة
+          const weightPerPiece = supplier.weightPerPiece || 0;
+          if (weightPerPiece <= 0) {
             return res.status(400).json({ message: `وزن الحبة الواحدة لـ ${supplier.nameAr} غير محدد أو غير صالح` });
           }
-          const totalWeightRequired = quantity * weightPerUnit;
 
-          if (weight.stock < totalWeightRequired) {
+          if (supplier.stock < quantity) {
             return res.status(400).json({
-              message: `المخزون غير كافٍ لـ ${weight.quantity} ${weight.unit} من ${supplier.nameAr} (المطلوب: ${totalWeightRequired} ${weight.unit}, المتوفر: ${weight.stock})`,
+              message: `المخزون غير كافٍ لـ ${supplier.nameAr} (المطلوب: ${quantity} حبة، المتوفر: ${supplier.stock} حبة)`,
             });
           }
         }
