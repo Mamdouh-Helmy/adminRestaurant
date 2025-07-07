@@ -16,7 +16,7 @@ const io = new Server(server, {
  
 
  cors: {
-    origin: ['http://localhost:5173', 'http://localhost:5174' , 'https://adminrestaurant-e9141.web.app', 'https://store-management-467c1.web.app', 'https://restaurant-d5367.web.app' , 'https://restaurant-d5367.web.app'],
+    origin: ['http://localhost:5173', 'http://localhost:5174' , 'https://adminrestaurant-e9141.web.app', 'https://store-management-467c1.web.app', 'https://restaurant-d5367.web.app' , 'https://restaurant-d5367.web.app' , ' https://adminrestaurant-e9141.web.app'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
   },
 });
@@ -25,7 +25,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174' , 'https://adminrestaurant-e9141.web.app', 'https://store-management-467c1.web.app', 'https://restaurant-d5367.web.app' , 'https://restaurant-d5367.web.app/'],
+    origin: ['http://localhost:5173', 'http://localhost:5174' , 'https://adminrestaurant-e9141.web.app', 'https://store-management-467c1.web.app', 'https://restaurant-d5367.web.app' , 'https://restaurant-d5367.web.app' , ' https://adminrestaurant-e9141.web.app'],
     credentials: true,
   })
 );
