@@ -1,48 +1,47 @@
 const express = require('express');
 const cors = require('cors');
-const http = require('http'); // لاستخدام http server مع Socket.IO
-const { Server } = require('socket.io'); // لاستعمال Socket.IO
-require('dotenv').config(); // لقراءة متغيرات البيئة من ملف .env
-const connectDB = require('./config/db'); // ملف الاتصال بقاعدة البيانات
+const http = require('http');
+const { Server } = require('socket.io');
+require('dotenv').config();
+const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
-const categoryRoutes = require('./routes/categoryRoutes'); // سنمرر io لهذا الملف
+const categoryRoutes = require('./routes/categoryRoutes');
 const supplierRoutes = require('./routes/supplierController');
-const salesRoutes = require('./routes/sales'); // ملف مسارات الموردين
+const salesRoutes = require('./routes/sales');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: ['http://localhost:5173', 'https://store-management-467c1.web.app' , 'https://restaurant-d5367.web.app'],
-    methods: ['GET', 'POST'],
+ 
+
+ cors: {
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'https://store-management-467c1.web.app', 'https://restaurant-d5367.web.app'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
   },
 });
 
 const PORT = process.env.PORT || 5000;
 
-// إعداد CORS وزيادة حجم الطلبات
 app.use(
   cors({
-    origin: ['http://localhost:5173' ,'http://localhost:5174' , 'https://store-management-467c1.web.app' , 'https://restaurant-d5367.web.app'],
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'https://store-management-467c1.web.app', 'https://restaurant-d5367.web.app'],
     credentials: true,
   })
 );
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
-// التحقق من المتغيرات البيئية
 if (!process.env.JWT_SECRET || !process.env.MONGODB_URI) {
   console.error('خطأ: تأكد من إعداد المتغيرات البيئية في ملف .env');
   process.exit(1);
 }
 
-// الاتصال بقاعدة البيانات
 connectDB();
 
-// ربط مسارات المصادقة والفئات والموردين
 app.use('/api/auth', authRoutes);
-app.use('/api/categories', categoryRoutes(io)); // تمرير io إلى مسارات الفئات
-app.use('/api/suppliers', supplierRoutes(io));  // تمرير io إلى مسارات الموردين
+app.use('/api/categories', categoryRoutes(io));
+app.use('/api/suppliers', supplierRoutes(io));
 app.use('/api/sales', salesRoutes(io));
 
 const generateVerificationCode = () => {
@@ -51,7 +50,6 @@ const generateVerificationCode = () => {
 
 app.post("/api/send-verification-code", async (req, res) => {
   const { email, toName, fromName } = req.body;
-
   try {
     const code = generateVerificationCode();
     res.status(200).json({ message: "Verification code sent successfully!", code });
@@ -63,7 +61,6 @@ app.post("/api/send-verification-code", async (req, res) => {
 
 app.post("/api/verify-code", (req, res) => {
   const { userCode, serverCode } = req.body;
-
   if (userCode === serverCode) {
     res.status(200).json({ message: "Verification successful!" });
   } else {
@@ -71,7 +68,6 @@ app.post("/api/verify-code", (req, res) => {
   }
 });
 
-// إعداد Socket.IO
 io.on('connection', (socket) => {
   console.log('عميل متصل');
   socket.on('newSale', (data) => {
@@ -83,7 +79,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// بدء تشغيل الخادم
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
